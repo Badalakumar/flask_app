@@ -1,0 +1,172 @@
+    {% extends "base.html" %}
+    {% block content %}
+    <title>Attendance Tracker</title>
+    <style>
+    /* Attendance Page Container */
+    .attendance-page { display: flex; justify-content: center; padding: 30px 15px; }
+    .attendance-box { width: 100%; max-width: 900px; background: #fff; border-radius: 10px; box-shadow: 0 6px 18px rgba(0,0,0,0.1); padding: 20px 30px 30px; display: flex; flex-direction: column; gap: 25px; }
+    .attendance-header h1 { text-align: center; color: #007bff; font-size: 28px; margin: 0; }
+    .attendance-controls { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 15px; }
+    .attendance-controls label { font-weight: bold; margin-right: 5px; }
+    .attendance-controls input, .attendance-controls select { padding: 6px 10px; font-size: 0.95em; min-width: 120px; border: 1px solid #ccc; border-radius: 4px; }
+    #attendance-table { width: 100%; border-collapse: collapse; margin-top: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    #attendance-table th, #attendance-table td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+    #attendance-table th { background-color: #007bff; color: white; font-weight: 600; text-transform: uppercase; }
+    #attendance-table tr:nth-child(even) { background-color: #f9f9f9; }
+    #attendance-table td:nth-child(3), #attendance-table td:nth-child(4) { text-align: center; }
+    #attendance-table input[type="radio"] { width: 18px; height: 18px; cursor: pointer; }
+    #submit-btn { display: block; width: 100%; padding: 15px; margin-top: 20px; background-color: #28a745; color: white; border: none; border-radius: 6px; font-size: 1.1em; cursor: pointer; transition: 0.3s; }
+    #submit-btn:hover { background-color: #218838; }
+    #status-message { margin-top: 15px; padding: 10px; border-radius: 5px; background-color: #e9ecef; color: #333; text-align: center; font-weight: bold; }
+    .hidden { display: none; }
+    /* Responsive Table */
+    @media (max-width: 600px) {
+        .attendance-controls { flex-direction: column; align-items: flex-start; }
+        .attendance-controls input, .attendance-controls select { width: 100%; box-sizing: border-box; }
+        #attendance-table, #attendance-table thead, #attendance-table tbody, #attendance-table th, #attendance-table td, #attendance-table tr { display: block; }
+        #attendance-table thead tr { position: absolute; top: -9999px; left: -9999px; }
+        #attendance-table tr { border: 1px solid #ccc; margin-bottom: 15px; border-radius: 6px; padding: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); background-color: #fff; }
+        #attendance-table td { border: none; border-bottom: 1px solid #eee; position: relative; padding-left: 50%; text-align: right; }
+        #attendance-table td:before { content: attr(data-label); position: absolute; left: 10px; width: 45%; padding-right: 10px; white-space: nowrap; font-weight: bold; text-align: left; color: #555; }
+        #attendance-table td:nth-child(3), #attendance-table td:nth-child(4) { text-align: center; padding-left: 0; }
+    }
+    </style>
+
+    <div class="container attendance-page">
+        <div class="attendance-box">
+            <div class="attendance-header">
+                <h1>Student Attendance</h1>
+            </div>
+
+            <div class="attendance-controls">
+                <label for="date">Select Date:</label>
+                <input type="date" id="date">
+
+                <label for="class">Select Class:</label>
+                <select id="class">
+                    <option value="">--Select Class--</option>
+                    {% for cls in classes %}
+                        <option value="{{ cls }}">{{ cls }}</option>
+                    {% endfor %}
+                </select>
+
+                <label for="subject">Select Subject:</label>
+                <select id="subject">
+                    <option value="">--Select Subject--</option>
+                    {% for subj in subjects %}
+                        <option value="{{ subj.SubjectId }}">{{ subj.SubjectName }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <form id="attendance-form">
+                <table id="attendance-table">
+                    <thead>
+                        <tr>
+                            <th>Roll No.</th>
+                            <th>Student Name</th>
+                            <th>Present</th>
+                            <th>Absent</th>
+                        </tr>
+                    </thead>
+                    <tbody id="student-list"></tbody>
+                </table>
+                <button type="submit" id="submit-btn">Submit Attendance</button>
+            </form>
+
+            <div id="status-message" class="hidden"></div>
+        </div>
+    </div>
+
+    <script>
+    const studentListBody = document.getElementById('student-list');
+    const attendanceForm = document.getElementById('attendance-form');
+    const statusMessage = document.getElementById('status-message');
+    const classSelect = document.getElementById('class');
+    const subjectSelect = document.getElementById('subject');
+    const dateInput = document.getElementById('date');
+
+    // Load students dynamically
+    async function loadStudents() {
+        const className = classSelect.value;
+        const subjectId = subjectSelect.value;
+        const date = dateInput.value;
+
+        if (!className || !subjectId || !date) return;
+
+        try {
+            const res = await fetch(`/admin/api/students?class=${className}&subject=${subjectId}&date=${date}`);
+            if (!res.ok) throw new Error(`Server returned ${res.status}`);
+            const students = await res.json();
+
+            studentListBody.innerHTML = '';
+            if (students.length === 0) {
+                studentListBody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#888;">No students found</td></tr>`;
+                return;
+            }
+
+            students.forEach(student => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td data-label="Roll No.">${student.StudentID}</td>
+                    <td data-label="Student Name">${student.Name}</td>
+                    <td data-label="Present">
+                        <input type="radio" name="status-${student.StudentID}" value="Present" ${student.Status==='P'?'checked':''}>
+                    </td>
+                    <td data-label="Absent">
+                        <input type="radio" name="status-${student.StudentID}" value="Absent" ${student.Status==='A'?'checked':''}>
+                    </td>
+                `;
+                studentListBody.appendChild(row);
+            });
+        } catch (err) {
+            console.error('Error loading students:', err);
+            studentListBody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:red;">Failed to load students</td></tr>`;
+        }
+    }
+
+    // Trigger load on change
+    [classSelect, subjectSelect, dateInput].forEach(el => el.addEventListener('change', loadStudents));
+
+    // Submit attendance
+    attendanceForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const date = dateInput.value;
+        const className = classSelect.value;
+        const subjectId = subjectSelect.value;
+
+        if (!date || !className || !subjectId) {
+            alert('Please select Date, Class, and Subject first.');
+            return;
+        }
+
+        const rows = studentListBody.querySelectorAll('tr');
+        const records = Array.from(rows).map(row => {
+            const rollNo = row.children[0].textContent.trim();
+            const radios = row.querySelectorAll(`input[name="status-${rollNo}"]`);
+            const status = Array.from(radios).find(r => r.checked)?.value || 'Absent';
+            return { rollNo, status };
+        });
+
+        try {
+            const res = await fetch('/admin/attendance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date, class: className, subject: subjectId, records })
+            });
+            const data = await res.json();
+            if (data.success) {
+                statusMessage.textContent = data.message;
+                statusMessage.classList.remove('hidden');
+                setTimeout(() => statusMessage.classList.add('hidden'), 4000);
+            } else {
+                alert(data.error);
+            }
+        } catch (err) {
+            alert('Error submitting attendance.');
+            console.error(err);
+        }
+    });
+    </script>
+    {% endblock %}

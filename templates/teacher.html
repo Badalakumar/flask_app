@@ -1,0 +1,423 @@
+{% extends "base.html" %}
+{%block content%}
+
+  <title>Teacher Management</title>
+  <style>
+    
+
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 9999;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      overflow: auto;
+      background-color: rgba(0, 0, 0, 0.6);
+    }
+
+    .modal-content {
+      background-color: #fefefe;
+      margin: 3% auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 60%;
+      max-width: 800px;
+      border-radius: 8px;
+      position: relative;
+      max-height: 94vh;
+      overflow-y: auto;
+    }
+
+    .close-btn {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      position: absolute;
+      top: 10px; right: 20px;
+    }
+    .close-btn:hover,
+    .close-btn:focus {
+      color: black;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    #studentForm {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+
+    .form-group {
+      flex: 1 1 calc(50% - 15px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .full-width {
+      flex: 1 1 100%;
+    }
+
+    .form-group label {
+      margin-bottom: 3px;
+      font-weight: bold;
+    }
+
+    .form-group input:not([type="checkbox"]),
+    .form-group select,
+    .form-group textarea {
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .form-actions {
+      margin-top: 20px;
+      text-align: center;
+    }
+
+    #submitButton, .edit-btn {
+      padding: 10px 20px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    #submitButton:hover, .edit-btn:hover {
+      background-color: #0056b3;
+    }
+
+    .table-container {
+      overflow-x: auto;
+      width: 100%;
+    }
+
+    #studentTable {
+      width: 100%;
+      min-width: 600px;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    #studentTable th, #studentTable td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: left;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    #studentTable th {
+      background-color: #f2f2f2;
+      font-weight: bold;
+    }
+
+    #addStudentBtn {
+      background-color: #28a745;
+      border: none;
+      color: white;
+      width: 120px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+
+    @media (max-width: 768px) {
+      .modal-content {
+        width: 95%;
+        margin: 3% auto;
+      }
+      .form-group {
+        flex: 1 1 100%;
+      }
+      h1, h2, #addStudentBtn {
+        text-align: center;
+        margin-bottom: 10px;
+      }
+      #addStudentBtn {
+        width: 90%;
+        margin-left: 5%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Teacher Table</h1>
+  <button id="addStudentBtn">Add Teacher</button>
+
+  <div id="studentFormModal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn">&times;</span>
+      <h2 id="formTitle">Add Teacher Details</h2>
+      <form id="studentForm">
+        <!-- Hidden field for teacherId -->
+        <input type="hidden" id="teacherId" name="teacherId" />
+
+        <div class="form-group full-width">
+          <label for="adminName">Admin Name:</label>
+          <input type="text" id="adminName" name="adminName" required />
+        </div>
+        <div class="form-group">
+          <label for="name">Name:</label>
+          <input type="text" id="name" name="name" required />
+        </div>
+        <div class="form-group">
+          <label for="emailId">Email ID:</label>
+          <input type="email" id="emailId" name="emailId" required />
+        </div>
+        <div class="form-group">
+          <label for="phoneNo">Phone No:</label>
+          <input type="tel" id="phoneNo" name="phoneNo"
+            pattern="[0-9]{10}" required title="10 digit phone number" />
+        </div>
+        <div class="form-group">
+          <label for="password">Password:</label>
+          <input type="password" id="psw" name="psw"
+           
+            title="Must contain at least one number, one uppercase and lowercase letter, and at least 8 characters"
+            required />
+        </div>
+        <div class="form-group">
+          <label for="subjects">Subjects:</label>
+          <div id="subjectsContainer">
+            {% for subject in subjects %}
+              <label>
+                <input type="checkbox" name="subjects" value="{{ subject['SubjectId'] }}" />
+                {{ subject['SubjectName'] }}
+              </label><br />
+            {% endfor %}
+          </div>
+        </div>
+        <div class="form-actions full-width">
+          <button type="submit" id="submitButton">Submit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <hr />
+  <h2>Teacher Records</h2>
+  <div class="table-container">
+    <table id="studentTable">
+      <thead>
+        <tr>
+          <th>Admin Name</th>
+          <th>Name</th>
+          <th>Email ID</th>
+          <th>Phone No</th>
+          <th>Subjects</th>
+          <th>Is Active</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for us in teachers %}
+        <tr data-teacher-id="{{ us.TeacherId }}">
+          <td>{{ us.AdminId }}</td>
+          <td>{{ us.Name }}</td>
+          <td>{{ us.EmailId }}</td>
+          <td>{{ us.PhoneNo }}</td>
+          <td>{{ us.Subject }}</td>
+          <td>{{ us.IsActive }}</td>
+          <td>
+            <button class="edit-btn" data-index="{{ loop.index0 }}">Edit</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const addStudentBtn = document.getElementById('addStudentBtn');
+      const studentFormModal = document.getElementById('studentFormModal');
+      const closeBtn = document.querySelector('.close-btn');
+      const studentForm = document.getElementById('studentForm');
+      const studentTableBody = document.querySelector('#studentTable tbody');
+      const formTitle = document.getElementById('formTitle');
+      const submitButton = document.getElementById('submitButton');
+      const subjectsContainer = document.getElementById('subjectsContainer');
+      const passwordInput = document.getElementById('psw');
+
+      let students = [];
+
+      function loadFromTable() {
+        const rows = studentTableBody.querySelectorAll('tr');
+        rows.forEach((row, idx) => {
+          const teacherId = row.getAttribute('data-teacher-id');
+          const cells = row.querySelectorAll('td');
+          const st = {
+            teacherId: teacherId || '',
+            adminName: cells[0].textContent.trim(),
+            name: cells[1].textContent.trim(),
+            emailId: cells[2].textContent.trim(),
+            phoneNo: cells[3].textContent.trim(),
+            subjects: cells[4].textContent.trim(),
+            isActive: (cells[5].textContent.trim().toLowerCase() === 'active')
+          };
+          students.push(st);
+        });
+      }
+
+      loadFromTable();
+
+      const getSelectedSubjects = () => {
+        const selected = [];
+        subjectsContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+          if (cb.checked) {
+            selected.push(cb.value);
+          }
+        });
+        return selected;
+      };
+
+      const setSelectedSubjects = (subjectString) => {
+        // subjectString might be comma‑separated SubjectIds or names, depending on what you store
+        const arr = subjectString.split(',').map(s => s.trim()).filter(s => s);
+        subjectsContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+          cb.checked = arr.includes(cb.value) || arr.includes(cb.nextSibling.textContent.trim());
+        });
+      };
+
+      const showFormModal = (mode = 'add') => {
+        if (mode === 'add') {
+          formTitle.textContent = 'Add Teacher Details';
+          submitButton.textContent = 'Submit';
+          studentForm.reset();
+          document.getElementById('teacherId').value = '';
+          setSelectedSubjects('');
+          passwordInput.setAttribute('required', 'required');
+          passwordInput.closest('.form-group').style.display = 'flex';
+        }
+        studentFormModal.style.display = 'block';
+      };
+
+      const hideFormModal = () => {
+        studentFormModal.style.display = 'none';
+      };
+
+      addStudentBtn.addEventListener('click', () => {
+        showFormModal('add');
+      });
+
+      closeBtn.addEventListener('click', () => {
+        hideFormModal();
+      });
+
+      window.addEventListener('click', (event) => {
+        if (event.target === studentFormModal) {
+          hideFormModal();
+        }
+      });
+
+      const renderTable = () => {
+        studentTableBody.innerHTML = '';
+        students.forEach((st, idx) => {
+          const row = studentTableBody.insertRow();
+          row.setAttribute('data-teacher-id', st.teacherId || '');
+          const vals = [st.adminName, st.name, st.emailId, st.phoneNo, getSubjectNamesFromIds(st.subjects)];
+          vals.forEach(val => {
+            const cell = row.insertCell();
+            cell.textContent = val;
+          });
+          const activeCell = row.insertCell();
+          activeCell.textContent = st.isActive ? 'Active' : 'Inactive';
+          const actionsCell = row.insertCell();
+          const btn = document.createElement('button');
+          btn.textContent = 'Edit';
+          btn.className = 'edit-btn';
+          btn.dataset.index = idx;
+          btn.addEventListener('click', () => editTeacher(idx));
+          actionsCell.appendChild(btn);
+        });
+      };
+
+      studentForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const formData = new FormData(studentForm);
+        const teacherData = Object.fromEntries(formData.entries()); 
+        const selectedSubjects = getSelectedSubjects(); 
+        teacherData.subjects = selectedSubjects;  // array of subject ids
+
+        const idx = teacherData.teacherId
+          ? students.findIndex(s => s.teacherId === teacherData.teacherId)
+          : -1;
+
+        if (idx === -1) {
+          // New teacher
+          teacherData.isActive = true;
+          students.push(teacherData);
+        } else {
+          // Update existing
+          const exist = students[idx];
+          exist.adminName = teacherData.adminName;
+          exist.name = teacherData.name;
+          exist.emailId = teacherData.emailId;
+          exist.phoneNo = teacherData.phoneNo;
+          exist.subjects = teacherData.subjects;
+          // Update password only if nonempty
+          if (teacherData.psw && teacherData.psw.trim() !== '') {
+            exist.psw = teacherData.psw;
+          }
+        }
+
+        fetch("/admin/teacher", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(teacherData)
+        })
+        .then(res => res.json())
+        .then(data => {
+          alert(data.message || "Operation successful");
+          renderTable();
+          hideFormModal();
+        })
+        .catch(err => {
+          console.error("Error:", err);
+          alert("Failed to save teacher");
+        });
+      });
+
+      const editTeacher = (index) => {
+        const st = students[index];
+        formTitle.textContent = 'Edit Teacher Details';
+        submitButton.textContent = 'Update';
+        document.getElementById('teacherId').value = st.teacherId || '';
+        document.getElementById('adminName').value = st.adminName || '';
+        document.getElementById('name').value = st.name || '';
+        document.getElementById('emailId').value = st.emailId || '';
+        document.getElementById('phoneNo').value = st.phoneNo || '';
+        passwordInput.value = '';
+        passwordInput.removeAttribute('required');
+        setSelectedSubjects(st.subjects ? st.subjects.toString() : '');
+        // hide password field when editing
+        passwordInput.closest('.form-group').style.display = 'none';
+
+
+        showFormModal('edit');
+      };
+
+      renderTable();
+    });
+  </script>
+  <script>
+  const subjectMap = {
+    {% for subject in subjects %}
+      "{{ subject.SubjectId }}": "{{ subject.SubjectName }}"{% if not loop.last %},{% endif %}
+    {% endfor %}
+  };
+  function getSubjectNamesFromIds(subjectIds) {
+  if (!subjectIds) return '';
+  const ids = Array.isArray(subjectIds) ? subjectIds : subjectIds.split(',');
+  return ids.map(id => subjectMap[id.trim()] || id).join(', ');
+}
+
+</script>
+
+
+{%endblock%}

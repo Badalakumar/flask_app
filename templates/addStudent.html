@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+{%block content%}
+<title>Student Management</title>
+<style>
+.table-container { overflow-x: auto; margin-top: 20px; }
+#studentTable { border-collapse: collapse; min-width: 1000px; width: 100%; }
+#studentTable th, #studentTable td { border: 1px solid #ddd; padding: 8px; }
+#studentTable th { background-color: #f2f2f2; }
+button { padding: 8px 12px; background-color: #7f64ecff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+button:hover { background-color: #0056b3; }
+.modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background-color: rgba(0,0,0,0.4); }
+.modal-content { background:#fff; margin:5% auto; padding:24px; width:40%; border-radius:8px; max-height:70vh; overflow-y:auto; }
+.close-btn { float:right; font-size:28px; cursor:pointer; }
+.form-group { margin-bottom:12px; display:flex; flex-direction:column; }
+.form-group label { font-weight:bold; margin-bottom:4px; }
+.form-group input, .form-group select, .form-group textarea { padding:6px; border:1px solid #ccc; border-radius:4px; width:100%; }
+.form-actions { text-align:center; margin-top:10px; }
+</style>
+</head>
+<body>
+
+<h1>Student Table</h1>
+<button id="addStudentBtn">Add Student</button>
+
+<!-- Modal -->
+<div id="studentFormModal" class="modal">
+  <div class="modal-content">
+    <span class="close-btn">&times;</span>
+    <h2>Add Student</h2>
+    <form id="studentForm">
+      <div class="form-group">
+        <label>Admin ID</label>
+        <input type="text" name="adminName" value="{{ admin_id }}" readonly required>
+      </div>
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" name="name" required>
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" name="emailId" required>
+      </div>
+      <div class="form-group">
+        <label>Phone No</label>
+        <input type="tel" name="phoneNo" pattern="[0-9]{10}" required>
+      </div>
+      <div class="form-group" id="passwordField">
+  <label>Password</label>
+  <input type="password" name="password" required>
+</div>
+
+      <div class="form-group">
+        <label>Gender</label>
+        <select name="gender" required>
+          <option value="">Select Gender</option>
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>DOB</label>
+        <input type="date" name="dob" required>
+      </div>
+      <div class="form-group">
+        <label>Class Name</label>
+        <input type="text" name="className" required>
+      </div>
+      <div class="form-group">
+        <label>Department</label>
+        <input type="text" name="department" required>
+      </div>
+      <div class="form-group">
+  <label>Subjects</label>
+  {% for subject in subjects %}
+    <input type="checkbox" name="subjects" value="{{ subject['SubjectId'] }}" data-name="{{ subject['SubjectName'] }}"> {{ subject['SubjectName'] }}<br>
+  {% endfor %}
+</div>
+
+      <div class="form-group">
+        <label>Father Name</label>
+        <input type="text" name="fatherName" required>
+      </div>
+      <div class="form-group">
+        <label>Mother Name</label>
+        <input type="text" name="motherName" required>
+      </div>
+      <div class="form-group">
+        <label>Address</label>
+        <textarea name="address" rows="3" required></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="submit">Submit</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<hr>
+<h2>Student Records</h2>
+<div class="table-container">
+  <table id="studentTable">
+    <thead>
+      <tr>
+        <th>Admin ID</th>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Phone</th>
+        <th>Gender</th>
+        <th>DOB</th>
+        <th>Class</th>
+        <th>Department</th>
+        <th>Subjects</th>
+        <th>Father</th>
+        <th>Mother</th>
+        <th>Address</th>
+        <th>Actions</th> <!-- New column -->
+      </tr>
+    </thead>
+    <tbody>
+  {% for student in students %}
+    <tr data-id="{{student.StudentId}}">
+      <td>{{student.AdminId}}</td>
+      <td>{{student.Name}}</td>
+      <td>{{student.EmailId}}</td>
+      <td>{{student.PhoneNo}}</td>
+      
+      <td>{{student.Gender}}</td>
+      <td>{{student.DOB}}</td>
+      <td>{{student.ClassName}}</td>
+      <td>{{student.Department}}</td>
+      <td>{{ student.Subjects }}</td>
+      <td>{{student.FatherName}}</td>
+      <td>{{student.MotherName}}</td>
+      <td>{{student.Address}}</td>
+      <td>
+        <button class="edit-btn">Edit</button>
+      </td>
+    </tr>
+  {% endfor %}
+</tbody>
+
+  </table>
+</div>
+
+<script>
+const modal = document.getElementById('studentFormModal');
+const btn = document.getElementById('addStudentBtn');
+const span = document.querySelector('.close-btn');
+const form = document.getElementById('studentForm');
+const tbody = document.querySelector('#studentTable tbody');
+
+// Open modal for Add
+// ✅ Open modal for Add (show password field)
+btn.onclick = () => {
+  form.reset();
+  form.dataset.studentId = '';
+  modal.style.display = 'block';
+  
+  // Show password field when adding new
+  const passField = document.getElementById('passwordField');
+  passField.style.display = 'block';
+  form.querySelector('input[name="password"]').required = true;
+};
+
+
+// Close modal
+span.onclick = () => { modal.style.display = 'none'; }
+window.onclick = (e) => { if(e.target == modal) modal.style.display = 'none'; }
+
+function formatDate(dob) {
+  const date = new Date(dob);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth()+1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
+
+// Edit buttons
+tbody.querySelectorAll('.edit-btn').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    const tr = e.target.closest('tr');
+    const studentId = tr.dataset.id;
+
+    // Populate modal fields
+    form.querySelector('input[name="adminName"]').value = tr.cells[0].textContent;
+    form.querySelector('input[name="name"]').value = tr.cells[1].textContent;
+    form.querySelector('input[name="emailId"]').value = tr.cells[2].textContent;
+    form.querySelector('input[name="phoneNo"]').value = tr.cells[3].textContent;
+    form.querySelector('select[name="gender"]').value = tr.cells[4].textContent;
+    form.querySelector('input[name="dob"]').value = tr.cells[5].textContent;
+
+    form.querySelector('input[name="className"]').value = tr.cells[6].textContent;
+    form.querySelector('input[name="department"]').value = tr.cells[7].textContent;
+    form.querySelector('input[name="fatherName"]').value = tr.cells[9].textContent;
+    form.querySelector('input[name="motherName"]').value = tr.cells[10].textContent;
+    form.querySelector('textarea[name="address"]').value = tr.cells[11].textContent;
+
+    // Subjects checkboxes
+const subjects = tr.cells[8].textContent.split(',').map(s => s.trim());
+form.querySelectorAll('input[name="subjects"]').forEach(cb => {
+  cb.checked = subjects.includes(cb.dataset.name);
+});
+
+// Hide password field when editing
+const passField = document.getElementById('passwordField');
+passField.style.display = 'none';
+form.querySelector('input[name="password"]').required = false;
+
+    // Set StudentId for update
+    form.dataset.studentId = studentId;
+    
+    modal.style.display = 'block';
+  });
+});
+
+// Handle submit (Add or Update)
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const formData = new FormData(form);
+  const selectedSubjects = Array.from(
+    form.querySelectorAll('input[name="subjects"]:checked')
+  ).map(cb => parseInt(cb.value));
+
+  const data = Object.fromEntries(formData.entries());
+  data.subjects = selectedSubjects;
+
+  const studentId = form.dataset.studentId;
+  if (studentId) data.StudentId = studentId;
+
+  try {
+    const res = await fetch('/admin/add_student', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    if(result.success){
+      const student = result.student;
+
+      if (studentId) {
+        // Update existing row
+        const tr = tbody.querySelector(`tr[data-id="${studentId}"]`);
+        tr.cells[0].textContent = student.AdminId;
+        tr.cells[1].textContent = student.Name;
+        tr.cells[2].textContent = student.EmailId;
+        tr.cells[3].textContent = student.PhoneNo;
+       
+        tr.cells[4].textContent = student.Gender;
+        tr.cells[5].textContent = formatDate(student.DOB);
+        tr.cells[6].textContent = student.ClassName;
+        tr.cells[7].textContent = student.Department;
+        tr.cells[8].textContent = student.Subjects.join(', ');
+        tr.cells[9].textContent = student.FatherName;
+        tr.cells[10].textContent = student.MotherName;
+        tr.cells[11].textContent = student.Address;
+      } else {
+        // Add new row
+        const row = tbody.insertRow();
+        row.dataset.id = student.StudentId;
+        row.innerHTML = `
+          <td>${student.AdminId}</td>
+          <td>${student.Name}</td>
+          <td>${student.EmailId}</td>
+          <td>${student.PhoneNo}</td>
+          <td>${student.Gender}</td>
+          <td>${formatDate(student.DOB)}</td>
+          <td>${student.ClassName}</td>
+          <td>${student.Department}</td>
+          <td>${student.Subjects.join(', ')}</td>
+          <td>${student.FatherName}</td>
+          <td>${student.MotherName}</td>
+          <td>${student.Address}</td>
+          <td><button class="edit-btn">Edit</button></td>
+        `;
+        console.log("Added row:", row);
+        // Re-bind edit button for new row
+        row.querySelector('.edit-btn').addEventListener('click', (e) => {
+          row.querySelector('.edit-btn').click();
+        });
+      }
+
+      form.reset();
+      form.dataset.studentId = '';
+      modal.style.display = 'none';
+    } else {
+      alert('Error: ' + result.error);
+    }
+  } catch(err) {
+    alert('AJAX Error: ' + err);
+  }
+});
+
+
+</script>
+
+{%endblock%}

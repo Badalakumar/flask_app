@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{%block content%}
+  <title>Subject Management</title>
+  <style>
+    
+    h1, h2 { text-align: center; }
+    .form-container {
+      padding: 15px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      background-color: #f9f9f9;
+    }
+    .form-container.hidden { display: none; }
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; font-weight: bold; margin-bottom: 5px; }
+    .form-group input[type="text"],
+    .form-group select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .checkbox-group { display: flex; align-items: center; gap: 10px; }
+    #formSubmitBtn, #formCancelBtn, .edit-btn, #addSubjectAssignmentBtn {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+    .btns { display: flex; justify-content: space-around; }
+    #formSubmitBtn { background-color: #4CAF50; color: white; }
+    #formCancelBtn { background-color: #f44336; color: white; }
+    .edit-btn {
+      background-color: #2196F3;
+      color: white;
+      display: inline-block;
+    }
+    .switch {
+      position: relative; display: inline-block; width: 40px; height: 24px;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #ccc; transition: .4s; border-radius: 24px;
+    }
+    .slider:before {
+      position: absolute; content: ""; height: 16px; width: 16px;
+      left: 4px; bottom: 4px; background-color: white; transition: .4s;
+      border-radius: 50%;
+    }
+    input:checked + .slider { background-color: #4CAF50; }
+    input:checked + .slider:before { transform: translateX(16px); }
+
+    #subjectAssignmentTable {
+      width: 100%; border-collapse: collapse; margin-top: 20px;
+    }
+    #subjectAssignmentTable th, #subjectAssignmentTable td {
+      border: 1px solid #ddd; padding: 12px 8px; text-align: left; font-size: 14px;
+    }
+    #subjectAssignmentTable th {
+      background-color: #f2f2f2; font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  
+  <h1>Subject Management</h1>
+  <button id="addSubjectAssignmentBtn">Add Subject</button>
+  <hr>
+
+  <div id="subjectAssignmentFormContainer" class="form-container hidden">
+    <form id="subjectAssignmentForm">
+      <h2><span id="formTitle">Add</span> Subject</h2>
+      <input type="hidden" id="assignmentIndex" name="assignmentIndex">
+      <input type="hidden" id="subjectId" name="subjectId">
+
+
+      <div class="form-group">
+        <label for="subjectName">Subject Name:</label>
+        <input type="text" id="subjectName" name="subjectName" required>
+      </div>
+
+      <div class="form-group checkbox-group">
+        <label for="isActive">Is Active:</label>
+        <label class="switch">
+          <input type="checkbox" id="isActive" name="isActive" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="btns">
+        <button type="submit" id="formSubmitBtn">Submit</button>
+        <button type="button" id="formCancelBtn">Cancel</button>
+      </div>
+    </form>
+  </div>
+
+  <h2>Subjects List</h2>
+  <table id="subjectAssignmentTable">
+    <thead>
+      <tr>
+        <th>Subject ID</th>
+        <th>Subject Name</th>
+        <th>Is Active</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const tableBody = document.querySelector('#subjectAssignmentTable tbody');
+      const addBtn = document.getElementById('addSubjectAssignmentBtn');
+      const formContainer = document.getElementById('subjectAssignmentFormContainer');
+      const assignmentForm = document.getElementById('subjectAssignmentForm');
+      const formTitle = document.getElementById('formTitle');
+      const formSubmitBtn = document.getElementById('formSubmitBtn');
+      const formCancelBtn = document.getElementById('formCancelBtn');
+      const subjectNameInput = document.getElementById('subjectName');
+      const isActiveCheckbox = document.getElementById('isActive');
+      const subjectIdInput = document.getElementById('subjectId');
+
+      let subjects = [];
+
+      function fetchSubjects() {
+        fetch('/admin/api/subjects')
+          .then(res => res.json())
+          .then(data => {
+            subjects = data;
+            renderTable();
+          })
+          .catch(err => console.error('Fetch error:', err));
+      }
+
+      function renderTable() {
+        tableBody.innerHTML = '';
+        subjects.forEach((s, i) => {
+          const row = tableBody.insertRow();
+          row.insertCell().textContent = s.SubjectId;
+          row.insertCell().textContent = s.SubjectName;
+          const statusCell = row.insertCell();
+          statusCell.innerHTML = `
+            <label class="switch">
+              <input type="checkbox" ${s.IsActive === 'Active' ? 'checked' : ''} data-id="${s.SubjectId}">
+              <span class="slider"></span>
+            </label>
+          `;
+          const actionCell = row.insertCell();
+          const editBtn = document.createElement('button');
+          editBtn.textContent = 'Edit';
+          editBtn.className = 'edit-btn';
+          editBtn.onclick = () => openEditForm(s);
+          actionCell.appendChild(editBtn);
+
+          // handle toggle
+          statusCell.querySelector('input').addEventListener('change', e => {
+            const subjectId = e.target.dataset.id;
+            const newStatus = e.target.checked;
+            updateSubjectStatus(subjectId, newStatus);
+          });
+        });
+      }
+
+      function openAddForm() {
+        formTitle.textContent = 'Add';
+        assignmentForm.reset();
+        subjectIdInput.value = '';
+        formContainer.classList.remove('hidden');
+      }
+
+      function openEditForm(subject) {
+        formTitle.textContent = 'Edit';
+        subjectIdInput.value = subject.SubjectId;
+        subjectNameInput.value = subject.SubjectName;
+        isActiveCheckbox.checked = subject.IsActive === 'Active';
+        formContainer.classList.remove('hidden');
+      }
+
+      function closeForm() {
+        formContainer.classList.add('hidden');
+      }
+
+      // Add or update subject
+      assignmentForm.addEventListener('submit', e => {
+        e.preventDefault();
+        const payload = {
+          subjectId: subjectIdInput.value,
+          subjectName: subjectNameInput.value.trim(),
+          isActive: isActiveCheckbox.checked
+        };
+        fetch('/admin/api/subjects', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(resp => {
+          alert(resp.message || 'Successfully Done !');
+          closeForm();
+          fetchSubjects();
+        })
+        .catch(err => alert('Error: ' + err));
+      });
+
+      function updateSubjectStatus(id, isActive) {
+  // send minimal payload
+  fetch('/admin/api/subjects', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ subjectId: id, isActive: isActive })
+  })
+  .then(res => res.json())
+  .then(resp => {
+    // If backend returns success message only, update local copy explicitly:
+    // Find subject in local array and set its IsActive without touching other fields
+    const idx = subjects.findIndex(s => String(s.SubjectId) === String(id));
+    if (idx !== -1) {
+      subjects[idx].IsActive = isActive ? 'Active' : 'Inactive';
+      // optionally: also update UI row (re-render)
+      renderTable();
+    } else {
+      // if not found, re-fetch full list to ensure consistency
+      fetchSubjects();
+    }
+  })
+  .catch(err => {
+    console.error('Toggle error:', err);
+    // revert checkbox visually if needed
+    fetchSubjects();
+  });
+}
+
+
+      addBtn.addEventListener('click', openAddForm);
+      formCancelBtn.addEventListener('click', closeForm);
+
+      fetchSubjects();
+    });
+  </script>
+{%endblock%}
